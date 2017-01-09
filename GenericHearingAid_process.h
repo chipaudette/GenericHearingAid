@@ -52,32 +52,14 @@ class AudioEffectMine_F32 : public AudioStream_F32
     // Here is where you can add your algorithm.
     // This function gets called block-wise...which is usually hard-coded to every 128 samples
     void applyMyAlgorithm(audio_block_f32_t *audio_block) {
-
-      //float *x, *y, *z;
-      //int n;
       
-      static I_O io;
-      static void CHA_PTR *cp[128] = { };
-
-      gha_process(io, cp);
-      //cleanup(io, cp);
-
-      // next line switches to compiled data
+      //I_O *io;
+      //CHA_PTR cp;
       //cp = (CHA_PTR) cha_data; 
-      // initialize i/o pointers
-      //x = io->iwav;
-      //y = io->owav;
-      //z = (float *) cp[_cc];
-      //n = CHA_IVAR[_cs];
-      // process FIRFB+AGC
-      //cha_firfb_analyze(cp, audio_block->data, audio_block->data, n);
-      //cha_firfb_analyze(cp, x, z, n);
-      // cha_agc_input(cp, z, z, n);
-      //cha_firfb_synthesize(cp, z, y, n);
 
-      //for (int i=0; i < audio_block->length; i++) {
-      //  audio_block->data[i] = (audio_block->data[i]) * 1;  
-      //}
+      for (int i=0; i < audio_block->length; i++) {
+        audio_block->data[i] = (audio_block->data[i]) * 1;  
+      }
       
     } //end of applyMyAlgorithms
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
