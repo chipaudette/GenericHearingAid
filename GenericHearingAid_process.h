@@ -1,6 +1,6 @@
-#include <chapro.h>
-#include <cha_ff.h>
-#include <cha_ff_data.h>
+#include "chapro.h"
+#include "cha_ff.h"
+#include "cha_ff_data.h"
 
 /*
    GenericHearingAid_process
@@ -49,28 +49,29 @@ class AudioEffectMine_F32 : public AudioStream_F32
       AudioStream_F32::transmit(audio_block);
       AudioStream_F32::release(audio_block);
     }
-
      
-
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
     // Here is where you can add your algorithm.
     // This function gets called block-wise...which is usually hard-coded to every 128 samples
     void applyMyAlgorithm(audio_block_f32_t *audio_block) {
-      
-      //I_O *io;
-      
+            
       CHA_PTR cp;
       cp = (CHA_PTR) cha_data; 
 
+      int n = 128;
+
       float *x, *y;
+      
 
-      gha_process(audio_block->data,audio_block->data, cp);
-      //cleanup(&io, cp);
+      //cha_firfb_analyze(cp, audio_block->data, audio_block->data, 64);
+      //cha_cleanup(cp);
+      
+      cha_agc_input(cp, audio_block->data, audio_block->data, n);
 
 
-      for (int i=0; i < audio_block->length; i++) {
-        audio_block->data[i] = (audio_block->data[i]) * 1;  
-      }
+      //for (int i=0; i < audio_block->length; i++) {
+      // audio_block->data[i] = (audio_block->data[i]) * 1;  
+      //}
       
     } //end of applyMyAlgorithms
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
