@@ -1,3 +1,7 @@
+#include <chapro.h>
+#include <cha_ff.h>
+#include <cha_ff_data.h>
+
 /*
    GenericHearingAid_process
 
@@ -17,11 +21,11 @@
 #include <arm_math.h> //ARM DSP extensions.  https://www.keil.com/pack/doc/CMSIS/DSP/html/index.html
 #include <AudioStream_F32.h>
 
-#include "chapro.h"
-#include "cha_ff.h"
-extern "C" {
-  #include "cha_ff_data.h"
-}
+//#include "chapro.h"
+//#include "cha_ff.h"
+//extern "C" {
+//  #include "cha_ff_data.h"
+//}
 
 class AudioEffectMine_F32 : public AudioStream_F32
 {
@@ -54,8 +58,15 @@ class AudioEffectMine_F32 : public AudioStream_F32
     void applyMyAlgorithm(audio_block_f32_t *audio_block) {
       
       //I_O *io;
-      //CHA_PTR cp;
-      //cp = (CHA_PTR) cha_data; 
+      
+      CHA_PTR cp;
+      cp = (CHA_PTR) cha_data; 
+
+      float *x, *y;
+
+      gha_process(audio_block->data,audio_block->data, cp);
+      //cleanup(&io, cp);
+
 
       for (int i=0; i < audio_block->length; i++) {
         audio_block->data[i] = (audio_block->data[i]) * 1;  
