@@ -1,7 +1,8 @@
+extern "C" {
 #include "chapro.h"
 #include "cha_ff.h"
 #include "cha_ff_data.h"
-
+}
 /*
    GenericHearingAid_process
 
@@ -21,11 +22,6 @@
 #include <arm_math.h> //ARM DSP extensions.  https://www.keil.com/pack/doc/CMSIS/DSP/html/index.html
 #include <AudioStream_F32.h>
 
-//#include "chapro.h"
-//#include "cha_ff.h"
-//extern "C" {
-//  #include "cha_ff_data.h"
-//}
 
 class AudioEffectMine_F32 : public AudioStream_F32
 {
@@ -59,19 +55,22 @@ class AudioEffectMine_F32 : public AudioStream_F32
       cp = (CHA_PTR) cha_data; 
 
       int n = 128;
+      int nc = 8;
 
-      float *x, *y;
-      
+      float *x;
 
-      //cha_firfb_analyze(cp, audio_block->data, audio_block->data, 64);
-      //cha_cleanup(cp);
+      x = (float *) calloc(n * nc * 2, sizeof(float)); // beter
+      //x = (float *) malloc(n * nc * 2 * sizeof(float)); // faster
+
       
       cha_agc_input(cp, audio_block->data, audio_block->data, n);
+      cha_firfb_analyze(cp, audio_block->data, x, n);
+      cha_agc_channel(cp, x, x, n);
+      cha_firfb_synthesize(cp, x, audio_block->data, n);
+      cha_agc_output(cp, audio_block->data, audio_block->data, n);
+      
+      //cha_cleanup(cp);
 
-
-      //for (int i=0; i < audio_block->length; i++) {
-      // audio_block->data[i] = (audio_block->data[i]) * 1;  
-      //}
       
     } //end of applyMyAlgorithms
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

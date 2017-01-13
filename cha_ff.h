@@ -1,8 +1,4 @@
 // cha_ff.h - FIR-filterbank & AGC
-#ifdef __cplusplus
-extern "C" {
-#endif
-    
 #ifndef CHA_FF_H
 #define CHA_FF_H
 
@@ -36,20 +32,12 @@ typedef struct {
     double bolt;                 // broadband output limiting threshold
 } CHA_WDRC;
 
-typedef struct {
-    char *ifn, *ofn, mat;
-    double rate;
-    float *iwav, *owav;
-    long *siz;
-    long iod, nwav, nsmp, mseg, nseg, oseg, pseg;
-    void **out;
-} I_O;
-    
 /*****************************************************/
 
 // firfb module
 
-FUNC(int) cha_firfb_prepare(CHA_PTR, double *, int, double, int, int, int);
+FUNC(int) cha_firfb_prepare(CHA_PTR, double *, int, double, 
+                            int, int, int, int, int);
 FUNC(void) cha_firfb_analyze(CHA_PTR, float *, float *, int);
 FUNC(void) cha_firfb_synthesize(CHA_PTR, float *, float *, int);
 
@@ -60,9 +48,6 @@ FUNC(void) cha_agc_input(CHA_PTR, float *, float *, int);
 FUNC(void) cha_agc_channel(CHA_PTR, float *, float *, int);
 FUNC(void) cha_agc_output(CHA_PTR, float *, float *, int);
 
-// call firfb and compressor modules
-//FUNC(static void) gha_process(I_O, CHA_PTR);
-
 /*****************************************************/
 
 #define _offset   _reserve
@@ -70,24 +55,24 @@ FUNC(void) cha_agc_output(CHA_PTR, float *, float *, int);
 // pointer indices
 
 #define _cc       _offset+0
-#define _ffhh     _offset+2
-#define _ffxx     _offset+4
-#define _ffyy     _offset+5
-#define _ffzz     _offset+6
-#define _gctk     _offset+7
-#define _gccr     _offset+8
-#define _gctkgn   _offset+9
-#define _gcbolt   _offset+10
-#define _gcppk    _offset+11
-#define _xsc      _offset+12
-#define _xpk      _offset+13
-#define _ppk      _offset+14
+#define _ffhh     _offset+1
+#define _ffxx     _offset+2
+#define _ffyy     _offset+3
+#define _ffzz     _offset+4
+#define _gctk     _offset+5
+#define _gccr     _offset+6
+#define _gctkgn   _offset+7
+#define _gcbolt   _offset+8
+#define _gcppk    _offset+9
+#define _xsc      _offset+10
+#define _xpk      _offset+11
+#define _ppk      _offset+12
 
 // integer variable indices
 
 #define _cs       0 
 #define _nw       1
-#define _nc       3
+#define _nc       2
 
 // double variable indices
 
@@ -104,7 +89,3 @@ FUNC(void) cha_agc_output(CHA_PTR, float *, float *, int);
 #define _gcbeta   10
 
 #endif /* CHA_FF_H */
-    
-#ifdef __cplusplus
-}
-#endif

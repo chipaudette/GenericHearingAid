@@ -1,4 +1,4 @@
-// agc_process.c - AGC-processing functions
+// agc_process.c - FIR-filterbank processing functions
 
 #include <stdlib.h>
 #include <string.h>

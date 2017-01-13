@@ -1,8 +1,4 @@
 // chapro.h - function prototypes for CHA common functions
-#ifdef __cplusplus
-extern "C" {
-#endif
-    
 #ifndef CHAPRO_H
 #define CHAPRO_H
 
@@ -67,7 +63,3 @@ FUNC(char *) cha_version(void);
 #define _reserve  3
 
 #endif /* CHAPRO_H */
-
-#ifdef __cplusplus
-}
-#endif
