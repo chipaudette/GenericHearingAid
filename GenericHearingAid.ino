@@ -66,6 +66,8 @@ void setup() {
   // setup any other other features
   pinMode(POT_PIN, INPUT); //set the potentiometer's input pin as an INPUT
 
+  Serial.println("setup() complete");
+
 } //end setup()
 
 
