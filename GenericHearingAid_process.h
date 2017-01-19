@@ -68,7 +68,7 @@ class AudioEffectMine_F32 : public AudioStream_F32
       
       cha_agc_input(cp, audio_block->data, audio_block->data, n);
       cha_firfb_analyze(cp, audio_block->data, x, n);
-      //cha_agc_channel(cp, x, x, n);
+      cha_agc_channel(cp, x, x, n);
       cha_firfb_synthesize(cp, x, audio_block->data, n);
       cha_agc_output(cp, audio_block->data, audio_block->data, n);
       
