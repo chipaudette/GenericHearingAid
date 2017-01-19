@@ -42,13 +42,13 @@ class AudioEffectMine_F32 : public AudioStream_F32
       CHA_PTR cp;
       cp = (CHA_PTR) cha_data; 
 
-      int n = 32;
-      int nc = 8;
+      int n = 128;  // chunck size
+      int nc = 8;   // number of channels
 
-      float *x;
+      float *x; // hold filterbank data
 
-      x = (float *) calloc(n * nc * 2, sizeof(float)); // better
-      //x = (float *) malloc(n * nc * 2 * sizeof(float)); // faster
+      x = (float *) calloc(n * nc * 2, sizeof(float)); // better, initializes memory
+      //x = (float *) malloc(n * nc * 2 * sizeof(float)); // faster, does not initialize memory
 
       applyMyAlgorithm(audio_block,cp,x,n);
       
@@ -68,7 +68,7 @@ class AudioEffectMine_F32 : public AudioStream_F32
       
       cha_agc_input(cp, audio_block->data, audio_block->data, n);
       cha_firfb_analyze(cp, audio_block->data, x, n);
-      cha_agc_channel(cp, x, x, n);
+      //cha_agc_channel(cp, x, x, n);
       cha_firfb_synthesize(cp, x, audio_block->data, n);
       cha_agc_output(cp, audio_block->data, audio_block->data, n);
       

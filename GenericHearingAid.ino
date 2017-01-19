@@ -4,6 +4,9 @@
    Created: Chip Audette, Dec 2016
    Purpose: Be a blank canvas for adding your own floating-point audio processing.
 
+   Modified by: Daniel Rasetshwane, January 2017
+   Purpose: Implements Generic Hearing Aid signal processing 
+
    Uses Teensy Audio Adapter.
    Assumes microphones (or whatever) are attached to the LINE IN (stereo)
    Listens  potentiometer mounted to Audio Board to provde a control signal.
