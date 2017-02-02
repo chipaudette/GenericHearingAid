@@ -1,19 +1,19 @@
-// cha_data.h - array size = 27832 bytes
+// cha_data.h - array size = 40632 bytes
 #ifndef CHA_DATA_H
 #define CHA_DATA_H
 
 static CHA_DATA p00[      64] = { // _size
-               256,        64,       128,      8192,      8256,      1032,      1032,      8192,
-                32,        32,        32,        32,        32,       512,         8
+               256,        64,       128,     16384,      8256,      1032,      1032,     12288,
+                32,        32,        32,        32,        32,      1024,         8
 };
 static CHA_DATA p01[      16] = { // _ivar
-               128,       128,         8
+               256,       128,         8
 };
 static double   p02[      16] = { // _dvar
             0.908230841,    0.998517215,          24000,            119,              0,
                     105,             10,            105,    0.980191946,    0.998517215
 };
-static CHA_DATA p03[    2048] = {         0};
+static CHA_DATA p03[    4096] = {         0};
 static CHA_DATA p04[    2064] = {
         0x3F70FEBF,0x00000000,0xB9A3D9C2,0xBF5B60FC,0xBF22E19D,0x32134388,0xB9A3D4C2,0x3EBB4560,
         0x3E148D44,0xB2326792,0xB9A3DB40,0xBCE7D6AE,0x3B142CDE,0x31C73848,0xB9A3D38D,0xB9971B22,
@@ -276,7 +276,7 @@ static CHA_DATA p04[    2064] = {
 };
 static CHA_DATA p05[     258] = {         0};
 static CHA_DATA p06[     258] = {         0};
-static CHA_DATA p07[    2048] = {         0};
+static CHA_DATA p07[    3072] = {         0};
 static CHA_DATA p08[       8] = {
         0x4200CCCD,0x41D40000,0x41D5999A,0x41D5999A,0x41EE6666,0x42066666,0x42093333,0x4202CCCD
 };
@@ -290,7 +290,7 @@ static CHA_DATA p11[       8] = {
         0x42825852,0x428F37DC,0x42ADCDED,0x42B9AAA6,0x42C46666,0x42CE999A,0x42CBCCCD,0x42C7999A
 };
 static CHA_DATA p12[       8] = {         0};
-static CHA_DATA p13[     128] = {         0};
+static CHA_DATA p13[     256] = {         0};
 static CHA_DATA p14[       2] = {         0};
 
 static CHA_DATA *cha_data[NPTR] = {

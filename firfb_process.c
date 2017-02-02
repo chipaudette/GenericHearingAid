@@ -6,6 +6,7 @@
 #include <assert.h>
 #include "chapro.h"
 #include "cha_ff.h"
+#include <arm_math.h>
 
 /***********************************************************/
 
@@ -45,7 +46,8 @@ firfb_analyze_sc(float *x, float *y, int cs,
         zk = zz + k * (nw + cs);
         for (j = 0; j < nk; j++) {
             hk = hh + (k * nk + j) * ns;
-            cmul(yy, xx, hk, nf);
+            //cmul(yy, xx, hk, nf);
+            arm_cmplx_mult_cmplx_f32(xx, hk, yy, nf);
             cha_fft_cr(yy, nt);
             for (i = 0; i < nt; i++) {
                 zk[i + j * cs] += yy[i];
@@ -76,7 +78,8 @@ firfb_analyze_lc(float *x, float *y, int cs,
        // loop over channels
         for (k = 0; k < nc; k++) {
             hk = hh + k * nf * 2;
-            cmul(yy, xx, hk, nf);
+            //cmul(yy, xx, hk, nf);
+            arm_cmplx_mult_cmplx_f32(xx, hk, yy, nf);
             cha_fft_cr(yy, nt);
             yk = y + k * cs;
             zk = zz + k * nw;

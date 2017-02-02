@@ -6,6 +6,7 @@
 #include <assert.h>
 #include "chapro.h"
 #include "cha_ff.h"
+#include <arm_math.h>
 
 /***********************************************************/
 // FFT functions adapted from G. D. Bergland, "Subroutines FAST and FSST," (1979).
@@ -140,8 +141,10 @@ rcrad4(int ii, int nn,
             }
         } else {
             arg = tpiovn * bitrev(i0, m);
-            c1 = cosf(arg);
-            s1 = sinf(arg);
+            //c1 = cosf(arg);
+            //s1 = sinf(arg);
+            c1 = arm_cos_f32(arg);
+            s1 = arm_sin_f32(arg);
             c2 = c1 * c1 - s1 * s1;
             s2 = c1 * s1 + c1 * s1;
             c3 = c1 * c2 - s1 * s2;
@@ -277,8 +280,10 @@ crrad4(int jj, int nn,
             }
         } else {
             arg = tpiovn * bitrev(ii, m);
-            c1 = cosf(arg);
-            s1 = -sinf(arg);
+            //c1 = cosf(arg);
+            //s1 = -sinf(arg);
+            c1 = arm_cos_f32(arg);
+            s1 = -arm_sin_f32(arg);
             c2 = c1 * c1 - s1 * s1;
             s2 = c1 * s1 + c1 * s1;
             c3 = c1 * c2 - s1 * s2;

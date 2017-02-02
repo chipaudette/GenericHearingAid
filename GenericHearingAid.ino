@@ -58,7 +58,7 @@ void setup() {
 
   // Audio connections require memory
   AudioMemory(10);      //allocate Int16 audio data blocks
-  AudioMemory_F32(10);  //allocate Float32 audio data blocks
+  AudioMemory_F32(20);  //allocate Float32 audio data blocks
 
   // Enable the audio shield, select input, and enable output
   sgtl5000_1.enable();                   //start the audio board
@@ -109,9 +109,10 @@ void servicePotentiometer(unsigned long curTime_millis) {
     //send the potentiometer value to your algorithm as a control parameter
     if (abs(val - prev_val) > 0.05) { //is it different than befor?
       Serial.print("Sending new value to my algorithms: "); Serial.println(val);
-      effect1.setUserParameter(val);   effect2.setUserParameter(val);
+      effect1.setUserParameter(val);   //effect2.setUserParameter(val);
     }
     prev_val = val;  //use the value the next time around
+    lastUpdate_millis = curTime_millis;
   } // end if
 } //end servicePotentiometer();
 
