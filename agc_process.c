@@ -7,10 +7,10 @@
 #include "chapro.h"
 #include "cha_ff.h"
 
-//#define db2(x)          ((20/logf(10))*logf(x))
-//#define undb2(x)        expf((x)/(20/logf(10)))
-#define db2(x)          cha_db2(x)
-#define undb2(x)        cha_undb2(x)
+#define db2(x)          ((20/logf(10))*logf(x))
+#define undb2(x)        expf((x)/(20/logf(10)))
+//#define db2(x)          cha_db2(x)
+//#define undb2(x)        cha_undb2(x)
 
 /***********************************************************/
 
