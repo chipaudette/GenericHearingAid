@@ -32,8 +32,6 @@
 #include "GenericHearingAid_process.h"
 
 
-//expose the sample rate
-
 //create audio library objects for handling the audio
 AudioControlSGTL5000    audioHardware;     //controller for the Teensy Audio Board
 AudioSynthWaveformSine  testSignal;          //use to generate test tone as input
@@ -90,6 +88,9 @@ void setup() {
   // setup any other other features
   pinMode(POT_PIN, INPUT); //set the potentiometer's input pin as an INPUT
 
+  //setup sine wave as test signal
+  testSignal.amplitude(0.01);
+  testSignal.frequency(500.0f);
   Serial.println("setup() complete");
 } //end setup()
 
@@ -133,9 +134,9 @@ void servicePotentiometer(unsigned long curTime_millis) {
         Serial.print("Changing tone frequency to = "); Serial.println(freq);
         testSignal.frequency(freq);
       #else
-        float vol_dB = 0.f + 15.0f*((val-0.5)*2.0);  //set volume as 0dB +/- 15 dB
-        Serial.print("Changing output volume frequency to = "); Serial.print(vol_dB);Serial.println(" dB");
-        audioHardware.volume(vol_dB);
+        float vol = 0.70f + 0.15f*((val-0.5)*2.0);  //set volume as 0.70 +/- 0.15
+        Serial.print("Setting output volume control to = "); Serial.println(vol);
+        audioHardware.volume(vol);
       #endif
     }
     prev_val = val;  //use the value the next time around
