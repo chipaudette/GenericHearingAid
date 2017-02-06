@@ -34,13 +34,14 @@ AudioConvert_F32toI16   float2Int1, float2Int2;    //Converts Float to Int16.  S
 
 //Make all of the audio connections
 AudioConnection         patchCord1(i2s_in, 0, int2Float1, 0);    //connect the Left input to the Left Int->Float converter
-AudioConnection         patchCord2(i2s_in, 1, int2Float2, 0);    //connect the Right input to the Right Int->Float converter
+//AudioConnection         patchCord2(i2s_in, 1, int2Float2, 0);    //connect the Right input to the Right Int->Float converter
 AudioConnection_F32     patchCord10(int2Float1, 0, effect1, 0);    //Left.  makes Float connections between objects
-AudioConnection_F32     patchCord11(int2Float2, 0, effect2, 0);    //Right.  makes Float connections between objects
+//AudioConnection_F32     patchCord11(int2Float2, 0, effect2, 0);    //Right.  makes Float connections between objects
 AudioConnection_F32     patchCord12(effect1, 0, float2Int1, 0);    //Left.  makes Float connections between objects
-AudioConnection_F32     patchCord13(effect2, 0, float2Int2, 0);    //Right.  makes Float connections between objects
+//AudioConnection_F32     patchCord13(effect2, 0, float2Int2, 0);    //Right.  makes Float connections between objects
 AudioConnection         patchCord20(float2Int1, 0, i2s_out, 0);  //connect the Left float processor to the Left output
-AudioConnection         patchCord21(float2Int2, 0, i2s_out, 1);  //connect the Right float processor to the Right output
+//AudioConnection         patchCord21(float2Int2, 0, i2s_out, 1);  //connect the Right float processor to the Right output
+AudioConnection         patchCord21(float2Int1, 0, i2s_out, 1);  //connect the Left float processor to the Right output
 
 // which input on the audio shield will be used?
 const int myInput = AUDIO_INPUT_LINEIN;
@@ -57,7 +58,7 @@ void setup() {
 
   // Audio connections require memory
   AudioMemory(10);      //allocate Int16 audio data blocks
-  AudioMemory_F32(10);  //allocate Float32 audio data blocks
+  AudioMemory_F32(20);  //allocate Float32 audio data blocks
 
   // Enable the audio shield, select input, and enable output
   sgtl5000_1.enable();                   //start the audio board
@@ -108,9 +109,10 @@ void servicePotentiometer(unsigned long curTime_millis) {
     //send the potentiometer value to your algorithm as a control parameter
     if (abs(val - prev_val) > 0.05) { //is it different than befor?
       Serial.print("Sending new value to my algorithms: "); Serial.println(val);
-      effect1.setUserParameter(val);   effect2.setUserParameter(val);
+      effect1.setUserParameter(val);   //effect2.setUserParameter(val);
     }
     prev_val = val;  //use the value the next time around
+    lastUpdate_millis = curTime_millis;
   } // end if
 } //end servicePotentiometer();
 
