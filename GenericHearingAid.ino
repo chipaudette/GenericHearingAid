@@ -36,7 +36,7 @@
 
 //create audio library objects for handling the audio
 AudioControlSGTL5000    audioHardware;     //controller for the Teensy Audio Board
-AudioSynthWaveformSine   testSignal;          //use to generate test tone as input
+AudioSynthWaveformSine  testSignal;          //use to generate test tone as input
 AudioInputI2S           i2s_in;          //Digital audio *from* the Teensy Audio Board ADC.  Sends Int16.  Stereo.
 AudioOutputI2S          i2s_out;        //Digital audio *to* the Teensy Audio Board DAC.  Expects Int16.  Stereo
 AudioConvert_I16toF32   int2Float1;     //Converts Int16 to Float.  See class in AudioStream_F32.h
