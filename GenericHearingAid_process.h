@@ -1,7 +1,7 @@
 extern "C" {
 #include "chapro.h"
 #include "cha_ff.h"
-#include "cha_ff_data.h"
+#include "cha_ff_data128.h"
 }
 
 #define CHUNK_SIZE 128
@@ -22,7 +22,6 @@ extern "C" {
 
 #include <arm_math.h> //ARM DSP extensions.  https://www.keil.com/pack/doc/CMSIS/DSP/html/index.html
 #include <AudioStream_F32.h>
-
 
 class AudioEffectMine_F32 : public AudioStream_F32
 {
