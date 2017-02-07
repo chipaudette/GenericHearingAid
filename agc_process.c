@@ -7,10 +7,48 @@
 #include "chapro.h"
 #include "cha_ff.h"
 
-#define db2(x)          ((20/logf(10))*logf(x))
-#define undb2(x)        expf((x)/(20/logf(10)))
+// Choose your math for going into and out of dB space
+//#define db2(x)          ((20/logf(10))*logf(x))
+//#define undb2(x)        expf((x)/(20/logf(10)))
 //#define db2(x)          cha_db2(x)
 //#define undb2(x)        cha_undb2(x)
+#define undb2(x)    (expf(2.302585092994f*(x / 20.0)))  //faster:  exp(log(10.0f)*x);  this is exact
+#define db2(x)      (20.0f*0.3010299956639812f*log2f_approx(x)) //faster: log2_approx(x)/log2(10);  this is approximate
+
+/* ----------------------------------------------------------------------
+** Fast approximation to the log2() function.  It uses a two step
+** process.  First, it decomposes the floating-point number into
+** a fractional component F and an exponent E.  The fraction component
+** is used in a polynomial approximation and then the exponent added
+** to the result.  A 3rd order polynomial is used and the result
+** when computing db20() is accurate to 7.984884e-003 dB.
+** ------------------------------------------------------------------- */
+//https://community.arm.com/tools/f/discussions/4292/cmsis-dsp-new-functionality-proposal/22621#22621
+//float log2f_approx_coeff[4] = {1.23149591368684f, -4.11852516267426f, 6.02197014179219f, -3.13396450166353f};
+static float log2f_approx(float X) {
+  //float *C = &log2f_approx_coeff[0];
+  float Y;
+  float F;
+  int E;
+
+  // This is the approximation to log2()
+  F = frexpf(fabsf(X), &E);
+  //  Y = C[0]*F*F*F + C[1]*F*F + C[2]*F + C[3] + E;
+  //Y = *C++;
+  Y = 1.23149591368684f;
+  Y *= F;
+  //Y += (*C++);
+  Y += -4.11852516267426f;
+  Y *= F;
+  //Y += (*C++);
+  Y += 6.02197014179219f;
+  Y *= F;
+  //Y += (*C++);
+  Y += -3.13396450166353f;
+  Y += E;
+
+  return(Y);
+}
 
 /***********************************************************/
 
