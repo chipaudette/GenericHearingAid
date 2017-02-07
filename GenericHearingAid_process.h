@@ -1,27 +1,27 @@
 extern "C" {
 #include "chapro.h"
 #include "cha_ff.h"
-#include "cha_ff_data.h"
+#include "cha_ff_data128.h"
 }
+
+#define CHUNK_SIZE 128
+#define NUM_FREQ_CHAN 8
+
 /*
    GenericHearingAid_process
 
    Created: Chip Audette, December 2016
-   Purpose; Here is the skeleton of a audio processing algorithm that will
-       (hopefully) make it easier for people to start making their own 
-       algorithm.
-   This processes a single stream of audio data (ie, it is mono)
 
    Modified by: Daniel Rasetshwane, January 2017
    Purpose: Implements Generic Hearing Aid signal processing   
-  
+   
+   This processes a single stream of audio data (ie, it is mono) 
 
    MIT License.  use at your own risk.
 */
 
 #include <arm_math.h> //ARM DSP extensions.  https://www.keil.com/pack/doc/CMSIS/DSP/html/index.html
 #include <AudioStream_F32.h>
-
 
 class AudioEffectMine_F32 : public AudioStream_F32
 {
@@ -38,38 +38,43 @@ class AudioEffectMine_F32 : public AudioStream_F32
       audio_block = AudioStream_F32::receiveWritable_f32();
       if (!audio_block) return;
 
-      //do your work
-      CHA_PTR cp;
-      cp = (CHA_PTR) cha_data; 
-
-      int n = 128;  // chunck size
-      int nc = 8;   // number of channels
-
-      float *x; // hold filterbank data
-
-      x = (float *) calloc(n * nc * 2, sizeof(float)); // better, initializes memory
-      //x = (float *) malloc(n * nc * 2 * sizeof(float)); // faster, does not initialize memory
-
-      applyMyAlgorithm(audio_block,cp,x,n);
+      //users could choose to put all of their processing in this method
+      applyMyAlgorithm(audio_block);
       
 
       ///transmit the block and release memory
       AudioStream_F32::transmit(audio_block);
       AudioStream_F32::release(audio_block);
-      free(x);
+
     }
      
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!11
     // Here is where you can add your algorithm.
     // This function gets called block-wise...which is usually hard-coded to every 128 samples
-    void applyMyAlgorithm(audio_block_f32_t *audio_block,CHA_PTR cp,float *x,int n) {
-            
+    void applyMyAlgorithm(audio_block_f32_t *audio_block) {
+      //get and set CHA-specific parameters
+      CHA_PTR cp;
+      cp = (CHA_PTR) cha_data; 
+      int n = CHUNK_SIZE;  // chunck size
+      int nc = NUM_FREQ_CHAN;   // number of channels
+
+      //allocate some memory for CHA processing
+      //float *x; // hold filterbank data
+      //x = (float *) calloc(n * nc * 2, sizeof(float)); // better, initializes memory
+      //x = (float *) malloc(n * nc * 2 * sizeof(float)); // faster, does not initialize memory
+      memset(x,0.0f,n*nc*2);  //clear this working memory
+
+      //do CHA processing
       cha_agc_input(cp, audio_block->data, audio_block->data, n);
-      //cha_firfb_analyze(cp, audio_block->data, x, n);
-      //cha_agc_channel(cp, x, x, n);
-      //cha_firfb_synthesize(cp, x, audio_block->data, n);
+      cha_firfb_analyze(cp, audio_block->data, x, n);
+      cha_agc_channel(cp, x, x, n);
+      cha_firfb_synthesize(cp, x, audio_block->data, n);
       cha_agc_output(cp, audio_block->data, audio_block->data, n);
-      
+
+      //free up memory
+      //free(x);
+
+      //processed audio is returned back through audio_block
     } //end of applyMyAlgorithms
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -89,7 +94,10 @@ class AudioEffectMine_F32 : public AudioStream_F32
 
     //this value can be set from the outside (such as from the potentiometer) to control
     //a parameter within your algorithm
-    float32_t user_parameter = 0.0;   
+    float32_t user_parameter = 0.0;  
+
+    //memory for CHA processing
+    float32_t x[CHUNK_SIZE * NUM_FREQ_CHAN * 2];
 
 };  //end class definition for AudioEffectMine_F32
 
