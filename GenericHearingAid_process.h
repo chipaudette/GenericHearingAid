@@ -1,10 +1,16 @@
 extern "C" {
 #include "chapro.h"
 #include "cha_ff.h"
-#include "cha_ff_data128.h"
+#if AUDIO_BLOCK_SAMPLES == 32
+  #include "cha_ff_data32.h"
+#elif AUDIO_BLOCK_SAMPLES == 64
+  #include "cha_ff_data64.h"
+#else
+  #include "cha_ff_data128.h"
+#endif
 }
 
-#define CHUNK_SIZE 128
+//#define CHUNK_SIZE 128
 #define NUM_FREQ_CHAN 8
 
 /*
@@ -21,30 +27,63 @@ extern "C" {
 */
 
 #include <arm_math.h> //ARM DSP extensions.  https://www.keil.com/pack/doc/CMSIS/DSP/html/index.html
+#include "AudioStream_Mod.h"
 #include <AudioStream_F32.h>
 
-class AudioEffectMine_F32 : public AudioStream_F32
+#if USE_F32_AUDIO_BLOCKS == 1
+#define INHERIT_CLASS AudioStream_F32
+#define AUDIO_TYPE audio_block_f32_t
+class AudioEffectMine : public INHERIT_CLASS
+#else
+#define INHERIT_CLASS AudioStream
+#define AUDIO_TYPE audio_block_t
+class AudioEffectMine : public INHERIT_CLASS
+#endif
 {
    public:
     //constructor
-    AudioEffectMine_F32(void) : AudioStream_F32(1, inputQueueArray_f32) {
+    AudioEffectMine(void) : INHERIT_CLASS(1, inputQueueArray) {
       //do any setup activities here
     };
 
     //here's the method that is called automatically by the Teensy Audio Library
     void update(void) {
-      //Serial.println("AudioEffectMine_F32: doing update()");  //for debugging.
-      audio_block_f32_t *audio_block;
-      audio_block = AudioStream_F32::receiveWritable_f32();
+      //Serial.println("AudioEffectMine: doing update()");  //for debugging.
+      AUDIO_TYPE *audio_block;
+      #if USE_F32_AUDIO_BLOCKS
+        audio_block = INHERIT_CLASS::receiveWritable_f32();
+      #else
+        audio_block = INHERIT_CLASS::receiveWritable();
+      #endif
       if (!audio_block) return;
 
+      //convert to floating point data type
+      audio_block_f32_t *audio_block_f32;
+      #if (USE_F32_AUDIO_BLOCKS==1)
+        //audio is laready in F32 format
+        audio_block_f32 = audio_block; //simply copy the pointer
+      #else
+        //convert integer to F32 format
+        audio_block_f32_t audio_block_f32_data;
+        audio_block_f32 = &audio_block_f32_data;
+        AudioConvert_I16toF32::convertAudio_I16toF32(audio_block,audio_block_f32,audio_block_f32->length);
+      #endif
+
       //users could choose to put all of their processing in this method
-      applyMyAlgorithm(audio_block);
+      applyMyAlgorithm(audio_block_f32);
       
+      //convert back to Int16 data type, if needed
+      #if (USE_F32_AUDIO_BLOCKS==1)
+        //don't need to convert, we just send the F32 data
+        audio_block = audio_block_f32;//simply copy the pointer
+      #else
+        //convert F32 to integer
+        AudioConvert_F32toI16::convertAudio_F32toI16(audio_block_f32,audio_block,audio_block_f32->length);
+      #endif
 
       ///transmit the block and release memory
-      AudioStream_F32::transmit(audio_block);
-      AudioStream_F32::release(audio_block);
+      INHERIT_CLASS::transmit(audio_block);
+      INHERIT_CLASS::release(audio_block);
 
     }
      
@@ -55,7 +94,7 @@ class AudioEffectMine_F32 : public AudioStream_F32
       //get and set CHA-specific parameters
       CHA_PTR cp;
       cp = (CHA_PTR) cha_data; 
-      int n = CHUNK_SIZE;  // chunck size
+      int n = AUDIO_BLOCK_SAMPLES;  // chunck size
       int nc = NUM_FREQ_CHAN;   // number of channels
 
       //allocate some memory for CHA processing
@@ -90,14 +129,14 @@ class AudioEffectMine_F32 : public AudioStream_F32
  
   private:
     //state-related variables
-    audio_block_f32_t *inputQueueArray_f32[1]; //memory pointer for the input to this module
+    AUDIO_TYPE *inputQueueArray[1]; //memory pointer for the input to this module
 
     //this value can be set from the outside (such as from the potentiometer) to control
     //a parameter within your algorithm
     float32_t user_parameter = 0.0;  
 
     //memory for CHA processing
-    float32_t x[CHUNK_SIZE * NUM_FREQ_CHAN * 2];
+    float32_t x[AUDIO_BLOCK_SAMPLES * NUM_FREQ_CHAN * 2];
 
 };  //end class definition for AudioEffectMine_F32
 

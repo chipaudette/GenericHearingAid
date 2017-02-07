@@ -15,8 +15,14 @@
 #define CUSTOM_SAMPLE_RATE 24000     //See local AudioStream_Mod.h.  Only a limitted number supported
 #define CUSTOM_BLOCK_SAMPLES 128     //See local AudioStream_Mod.h.  Do not change.  Doesn't work yet.
 
+//Use the new Tympan board?
+#define USE_TYMPAN 1    //1 = uses tympan hardware, 0 = uses teensy audio board
+
 //Use test tone as input (set to 1)?  Or, use live audio (set to zero)
-#define USE_TEST_TONE_INPUT 0
+#define USE_TEST_TONE_INPUT 1
+
+//Which kind of processing to use?
+#define USE_F32_AUDIO_BLOCKS  0
 
 //include my custom AudioStream.h...this prevents the default one from being used
 #include "AudioStream_Mod.h"
@@ -33,33 +39,83 @@
 
 
 //create audio library objects for handling the audio
-AudioControlSGTL5000    audioHardware;     //controller for the Teensy Audio Board
+#if USE_TYMPAN == 0
+  AudioControlSGTL5000    audioHardware;    //controller for the Teensy Audio Board
+#else
+  #include "control_tlv320.h"
+  AudioControlTLV320    audioHardware;    //controller for the Teensy Audio Board
+#endif
 AudioSynthWaveformSine  testSignal;          //use to generate test tone as input
 AudioInputI2S           i2s_in;          //Digital audio *from* the Teensy Audio Board ADC.  Sends Int16.  Stereo.
 AudioOutputI2S          i2s_out;        //Digital audio *to* the Teensy Audio Board DAC.  Expects Int16.  Stereo
-AudioConvert_I16toF32   int2Float1;     //Converts Int16 to Float.  See class in AudioStream_F32.h
-AudioEffectMine_F32     effect1;        //This is your own algorithms
-AudioConvert_F32toI16   float2Int1;     //Converts Float to Int16.  See class in AudioStream_F32.h
 
 
 //Make all of the audio connections
-#if (USE_TEST_TONE_INPUT == 1)
-  //use test tone as audio input
-  AudioConnection         patchCord1(testSignal, 0, int2Float1, 0);    //connect the Left input to the Left Int->Float converter
+#if (USE_F32_AUDIO_BLOCKS==1)
+  //use F32 objects
+  AudioConvert_I16toF32   int2Float1;     //Converts Int16 to Float.  See class in AudioStream_F32.h
+  AudioEffectMine     effect1;        //This is your own algorithms
+  AudioConvert_F32toI16   float2Int1;     //Converts Float to Int16.  See class in AudioStream_F32.h
+  
+  #if (USE_TEST_TONE_INPUT == 1)
+    //use test tone as audio input
+    AudioConnection         patchCord1(testSignal, 0, int2Float1, 0);    //connect the Left input to the Left Int->Float converter
+  #else
+    //use real audio input (microphones or line-in)
+    AudioConnection         patchCord1(i2s_in, 0, int2Float1, 0);    //connect the Left input to the Left Int->Float converter
+  #endif
+  AudioConnection_F32     patchCord10(int2Float1, 0, effect1, 0);    //Left.  makes Float connections between objects
+  AudioConnection_F32     patchCord12(effect1, 0, float2Int1, 0);    //Left.  makes Float connections between objects
+  AudioConnection         patchCord20(float2Int1, 0, i2s_out, 0);  //connect the Left float processor to the Left output
+  AudioConnection         patchCord21(float2Int1, 0, i2s_out, 1);  //connect the Right float processor to the Right output
 #else
-  //use real audio input (microphones or line-in)
-  AudioConnection         patchCord1(i2s_in, 0, int2Float1, 0);    //connect the Left input to the Left Int->Float converter
+  //use I16 objects
+  AudioEffectMine     effect1;        //This is your own algorithms  
+  #if (USE_TEST_TONE_INPUT == 1)
+    //use test tone as audio input
+    AudioConnection         patchCord1(testSignal, 0, effect1, 0);    //connect the Left input to the Left Int->Float converter
+  #else
+    //use real audio input (microphones or line-in)
+    AudioConnection         patchCord1(i2s_in, 0, effect1, 0);    //connect the Left input to the Left Int->Float converter
+  #endif
+  AudioConnection         patchCord20(effect1, 0, i2s_out, 0);  //connect the Left float processor to the Left output
+  AudioConnection         patchCord21(effect1, 0, i2s_out, 1);  //connect the Right float processor to the Right output
 #endif
-AudioConnection_F32     patchCord10(int2Float1, 0, effect1, 0);    //Left.  makes Float connections between objects
-AudioConnection_F32     patchCord12(effect1, 0, float2Int1, 0);    //Left.  makes Float connections between objects
-AudioConnection         patchCord20(float2Int1, 0, i2s_out, 0);  //connect the Left float processor to the Left output
-AudioConnection         patchCord21(float2Int1, 0, i2s_out, 1);  //connect the Right float processor to the Right output
 
 // which input on the audio shield will be used?
 const int myInput = AUDIO_INPUT_LINEIN;   //or, do AUDIO_INPUT_MIC
 
 //I have a potentiometer on the Teensy Audio Board
 #define POT_PIN A1  //potentiometer is tied to this pin
+
+// define functions to setup the hardware
+void setupAudioHardware(void) {
+  #if USE_TYMPAN == 0
+    //use Teensy Audio Board
+    Serial.println("Setting up Teensy Audio Board...");
+    audioHardware.enable();                   //start the audio board
+    audioHardware.inputSelect(myInput);       //choose line-in or mic-in
+    audioHardware.volume(0.8);                //volume can be 0.0 to 1.0.  0.5 seems to be the usual default.
+    audioHardware.lineInLevel(10, 10);        //level can be 0 to 15.  5 is the Teensy Audio Library's default
+    audioHardware.adcHighPassFilterDisable(); //reduces noise.  https://forum.pjrc.com/threads/27215-24-bit-audio-boards?p=78831&viewfull=1#post78831
+  #else
+    //use Tympan Audio Board
+    Serial.println("Setting up Tympan Audio Board...");
+    audioHardware.enable(); // activate AIC
+
+    //choose input
+    //audioHardware.inputSelect(TYMPAN_INPUT_MIC_JACK); // use the microphone jack
+    audioHardware.inputSelect(TYMPAN_INPUT_ON_BOARD_MIC); // use the on board microphones // default
+
+    //choose mic bias (if using mics on input jack)
+    int myBiasLevel = TYMPAN_MIC_BIAS_2_5;  //choices: TYMPAN_MIC_BIAS_2_5, TYMPAN_MIC_BIAS_1_7, TYMPAN_MIC_BIAS_1_25, TYMPAN_MIC_BIAS_VSUPPLY
+    audioHardware.setMicBias(myBiasLevel); // set mic bias to 2.5 // default
+  
+    //set volumes
+    audioHardware.volume(0);  // -63.6 to +24 dB in 0.5dB steps.  uses signed 8-bit
+    audioHardware.micGain(10); // set MICPGA volume, 0-47.5dB in 0.5dB setps
+  #endif
+}
 
 // define the setup() function, the function that is called once when the device is booting
 void setup() {
@@ -79,12 +135,9 @@ void setup() {
   setI2SFreq((int)AUDIO_SAMPLE_RATE); //set the sample rate for the Audio Card (the rest of the library doesn't know, though)
  
   // Enable the audio shield, select input, and enable output
-  audioHardware.enable();                   //start the audio board
-  audioHardware.inputSelect(myInput);       //choose line-in or mic-in
-  audioHardware.volume(0.8);                //volume can be 0.0 to 1.0.  0.5 seems to be the usual default.
-  audioHardware.lineInLevel(10, 10);        //level can be 0 to 15.  5 is the Teensy Audio Library's default
-  audioHardware.adcHighPassFilterDisable(); //reduces noise.  https://forum.pjrc.com/threads/27215-24-bit-audio-boards?p=78831&viewfull=1#post78831
-
+  setupAudioHardware();
+  Serial.println("Audio Hardware Setup Complete.");
+  
   // setup any other other features
   pinMode(POT_PIN, INPUT); //set the potentiometer's input pin as an INPUT
 
@@ -126,20 +179,28 @@ void servicePotentiometer(unsigned long curTime_millis) {
     //send the potentiometer value to your algorithm as a control parameter
     //float scaled_val = val / 3.0; scaled_val = scaled_val * scaled_val;
     if (abs(val - prev_val) > 0.05) { //is it different than befor?
+      prev_val = val;  //save the value for comparison for the next time around
+      
       //Serial.print("Sending new value to my algorithms: ");
       //Serial.println(effect1.setUserParameter(val));   //effect2.setUserParameter(val);
+      if (USE_TYMPAN==1) val = 1.0 - val;  //reverse direction of potentiometer (error with Tympan PCB)
 
       #if USE_TEST_TONE_INPUT==1
         float freq = 700.f+200.f*((val - 0.5)*2.0);  //change tone 700Hz +/- 200 Hz
         Serial.print("Changing tone frequency to = "); Serial.println(freq);
         testSignal.frequency(freq);
       #else
-        float vol = 0.70f + 0.15f*((val-0.5)*2.0);  //set volume as 0.70 +/- 0.15
-        Serial.print("Setting output volume control to = "); Serial.println(vol);
-        audioHardware.volume(vol);
+        #if USE_TYMPAN == 1
+          float vol_dB = 0.f + 15.0f*((val-0.5)*2.0);  //set volume as 0dB +/- 15 dB
+          Serial.print("Changing output volume frequency to = "); Serial.print(vol_dB);Serial.println(" dB");
+          audioHardware.volume(vol_dB);
+        #else
+          float vol = 0.70f + 0.15f*((val-0.5)*2.0);  //set volume as 0.70 +/- 0.15
+          Serial.print("Setting output volume control to = "); Serial.println(vol);
+          audioHardware.volume(vol);
+        #endif
       #endif
     }
-    prev_val = val;  //use the value the next time around
     lastUpdate_millis = curTime_millis;
   } // end if
 } //end servicePotentiometer();

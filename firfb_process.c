@@ -17,7 +17,7 @@
     #define ARM_FFT_INIT_FUNC arm_cfft_radix4_init_f32
     #define ARM_FFT_FUNC arm_cfft_radix4_f32
   #else
-    #define ARM_FFT_INST_TYPE arm_cff_radix2_instance_f32  //radix 2 is for NFFT=32 and NFFT=128
+    #define ARM_FFT_INST_TYPE arm_cfft_radix2_instance_f32  //radix 2 is for NFFT=32 and NFFT=128
     #define ARM_FFT_INIT_FUNC arm_cfft_radix2_init_f32
     #define ARM_FFT_FUNC arm_cfft_radix2_f32
   #endif
@@ -35,7 +35,7 @@
 
       ifftFlag = 0; //zero says to setup as FFT
       int FFT_allocation_status = ARM_FFT_INIT_FUNC(&cfft_inst1, ARM_NFFT, ifftFlag, doBitReverse); //init FFT
-
+      
       ifftFlag = 1; //one says to setup as IFFT
       int IFFT_allocation_status = ARM_FFT_INIT_FUNC(&cifft_inst1, ARM_NFFT, ifftFlag, doBitReverse); //init IFFT  
   }
