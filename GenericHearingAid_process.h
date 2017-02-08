@@ -66,7 +66,11 @@ class AudioEffectMine : public INHERIT_CLASS
         //convert integer to F32 format
         audio_block_f32_t audio_block_f32_data;
         audio_block_f32 = &audio_block_f32_data;
-        AudioConvert_I16toF32::convertAudio_I16toF32(audio_block,audio_block_f32,audio_block_f32->length);
+        //AudioConvert_I16toF32::convertAudio_I16toF32(audio_block,audio_block_f32,audio_block_f32->length);
+        //const float MAX_INT = 32678.0;
+        const int len = audio_block_f32->length;
+        for (int i = 0; i < len; i++) audio_block_f32->data[i] = (float)(audio_block->data[i]);
+        arm_scale_f32(audio_block_f32->data, 1.0f/32678.0f, audio_block_f32->data, audio_block_f32->length); //divide by 32678 to get -1.0 to +1.0        
       #endif
 
       //users could choose to put all of their processing in this method
@@ -78,7 +82,13 @@ class AudioEffectMine : public INHERIT_CLASS
         audio_block = audio_block_f32;//simply copy the pointer
       #else
         //convert F32 to integer
-        AudioConvert_F32toI16::convertAudio_F32toI16(audio_block_f32,audio_block,audio_block_f32->length);
+        //AudioConvert_F32toI16::convertAudio_F32toI16(audio_block_f32,audio_block,audio_block_f32->length);
+        //const float MAX_INT = 32678.0;
+        arm_scale_f32(audio_block_f32->data,32768.0f,audio_block_f32->data,len);
+        for (int i = 0; i < len; i++) {
+          //audio_block->data[i] = (int16_t)(max(min( (audio_block_f32->data[i] * 32678.0f), 32678.0f), -32678.0f));
+          audio_block->data[i] = (int16_t)(max(min(audio_block_f32->data[i], 32678.0f), -32678.0f));
+        }        
       #endif
 
       ///transmit the block and release memory

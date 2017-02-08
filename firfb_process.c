@@ -7,11 +7,15 @@
 #include "chapro.h"
 #include "cha_ff.h"
 
+
 //Added for ARM FFT/IFFT processing
 #define USE_ARM_MATH 1
 #if USE_ARM_MATH == 1
   #include <arm_math.h>
   #define ARM_NFFT (128*2)   //CHUNK_SIZE * 2...YOU MUST SET THIS VALUE YOURSELF!
+  //#define ARM_NFFT (64*2)   //CHUNK_SIZE * 2...YOU MUST SET THIS VALUE YOURSELF!
+  //#define ARM_NFFT (32*2)   //CHUNK_SIZE * 2...YOU MUST SET THIS VALUE YOURSELF!
+
   #if (ARM_NFFT == 64) || (ARM_NFFT == 256)
     #define ARM_FFT_INST_TYPE arm_cfft_radix4_instance_f32  //radix 4 is for NFFT=64 and NFFT=256
     #define ARM_FFT_INIT_FUNC arm_cfft_radix4_init_f32
@@ -131,7 +135,7 @@ firfb_analyze_lc(float *x, float *y, int cs,
            ARM_FFT_FUNC(&cfft_inst1, xx_temp); //DSP accelerated
         #else
           fzero(xx, nt);
-          fcopy(xx, x + j, ni);        
+          fcopy(xx, x + j, ni);      
           cha_fft_rc(xx, nt); //FFT
         #endif
           

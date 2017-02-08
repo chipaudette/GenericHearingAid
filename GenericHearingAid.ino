@@ -22,7 +22,7 @@
 #define USE_TEST_TONE_INPUT 1
 
 //Which kind of processing to use?
-#define USE_F32_AUDIO_BLOCKS  0
+#define USE_F32_AUDIO_BLOCKS  1
 
 //include my custom AudioStream.h...this prevents the default one from being used
 #include "AudioStream_Mod.h"
