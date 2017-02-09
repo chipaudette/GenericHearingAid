@@ -19,7 +19,7 @@
 #define USE_TYMPAN 1    //1 = uses tympan hardware, 0 = uses teensy audio board
 
 //Use test tone as input (set to 1)?  Or, use live audio (set to zero)
-#define USE_TEST_TONE_INPUT 1
+#define USE_TEST_TONE_INPUT 0
 
 //Which kind of processing to use?
 #define USE_F32_AUDIO_BLOCKS  1

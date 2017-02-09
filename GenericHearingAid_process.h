@@ -5,7 +5,7 @@ extern "C" {
   #include "cha_ff_data32.h"
 #elif AUDIO_BLOCK_SAMPLES == 64
   #include "cha_ff_data64.h"
-#else
+#elif AUDIO_BLOCK_SAMPLES == 128
   #include "cha_ff_data128.h"
 #endif
 }
