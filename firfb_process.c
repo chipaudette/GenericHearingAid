@@ -12,22 +12,34 @@
 #define USE_ARM_MATH 1
 #if USE_ARM_MATH == 1
   #include <arm_math.h>
-  #define ARM_NFFT (128*2)   //CHUNK_SIZE * 2...YOU MUST SET THIS VALUE YOURSELF!
+  //#define ARM_NFFT (128*2)   //CHUNK_SIZE * 2...YOU MUST SET THIS VALUE YOURSELF!
   //#define ARM_NFFT (64*2)   //CHUNK_SIZE * 2...YOU MUST SET THIS VALUE YOURSELF!
-  //#define ARM_NFFT (32*2)   //CHUNK_SIZE * 2...YOU MUST SET THIS VALUE YOURSELF!
+  #define ARM_NFFT (32*2)   //CHUNK_SIZE * 2...YOU MUST SET THIS VALUE YOURSELF!
 
   #if (ARM_NFFT == 64) || (ARM_NFFT == 256)
+    //use radix4, which is faster than radix2.
     #define ARM_FFT_INST_TYPE arm_cfft_radix4_instance_f32  //radix 4 is for NFFT=64 and NFFT=256
     #define ARM_FFT_INIT_FUNC arm_cfft_radix4_init_f32
     #define ARM_FFT_FUNC arm_cfft_radix4_f32
+//  #elif (ARM_NFFT == 128)
+//    //use rfft
+//    #define USE_ARM_RFFT
+//    #define ARM_FFT_INST_TYPE arm_rfft_instance_f32
+//    #define ARM_FFT_RAD4_INST_TYPE arm_cfft_radix4_instance_f32
+//    #define ARM_FFT_INIT_FUNC arm_rfft_init_f32
+//    #define ARM_FFT_FUNC arm_rfft_f32   
   #else
+    //use radix2, which is slower than radix4.  Doing an RFFT is also possible at NFFT=128 or NFFT=512
     #define ARM_FFT_INST_TYPE arm_cfft_radix2_instance_f32  //radix 2 is for NFFT=32 and NFFT=128
     #define ARM_FFT_INIT_FUNC arm_cfft_radix2_init_f32
     #define ARM_FFT_FUNC arm_cfft_radix2_f32
   #endif
 
   //create ARM Math FFT instances
-  ARM_FFT_INST_TYPE cfft_inst1, cifft_inst1; 
+  ARM_FFT_INST_TYPE fft_inst1, ifft_inst1; 
+  #ifdef USE_ARM_RFFT
+    ARM_FFT_RAD4_INST_TYPE fft_rad4_inst, ifft_rad4_inst;
+  #endif
 
   //create temporary memory
   float xx_temp[2*ARM_NFFT], yy_temp[2*ARM_NFFT];
@@ -36,12 +48,21 @@
   static void initialize_ARM_FFT(void) {
       uint8_t ifftFlag; // 0 is FFT, 1 is IFFT
       uint8_t doBitReverse = 1;
+      int FFT_allocation_status=-9, IFFT_allocation_status=-9;
 
       ifftFlag = 0; //zero says to setup as FFT
-      int FFT_allocation_status = ARM_FFT_INIT_FUNC(&cfft_inst1, ARM_NFFT, ifftFlag, doBitReverse); //init FFT
+      #ifdef USE_ARM_RFFT
+        FFT_allocation_status = ARM_FFT_INIT_FUNC(&fft_inst1, &fft_rad4_inst, ARM_NFFT, ifftFlag, doBitReverse); //init FFT
+      #else
+        FFT_allocation_status = ARM_FFT_INIT_FUNC(&fft_inst1, ARM_NFFT, ifftFlag, doBitReverse); //init FFT
+      #endif
       
       ifftFlag = 1; //one says to setup as IFFT
-      int IFFT_allocation_status = ARM_FFT_INIT_FUNC(&cifft_inst1, ARM_NFFT, ifftFlag, doBitReverse); //init IFFT  
+      #ifdef USE_ARM_RFFT
+        IFFT_allocation_status = ARM_FFT_INIT_FUNC(&fft_inst1, &fft_rad4_inst, ARM_NFFT, ifftFlag, doBitReverse); //init FFT
+      #else
+        IFFT_allocation_status = ARM_FFT_INIT_FUNC(&ifft_inst1, ARM_NFFT, ifftFlag, doBitReverse); //init IFFT    
+      #endif
   }
 
   static void rebuildNegFreqBins(float data[], int n_fft) {
@@ -87,11 +108,25 @@ firfb_analyze_sc(float *x, float *y, int cs,
     nt = cs * 2;
     nf = cs + 1;
     ns = nf * 2;
+
+    #if USE_ARM_MATH
+      //use ARM-specific FFT acceleration
+      for (k = 0; k < cs; k++) { xx[2*k]=x[k]; xx[2*k+1]=0.0f;} //ni = nw = 128
+      for (k=cs; k < nt; k++) { xx[2*k]=0.0f; xx[2*k+1] = 0.0f; } ///zero pad the rest
+      ARM_FFT_FUNC(&fft_inst1, xx); //DSP accelerated      
+    #else
+      //original
+      fzero(xx, nt); //original, but moved up here
+      fcopy(xx, x, cs); //original, but moved up here
+      cha_fft_rc(xx, nt);    //original, but moved up here 
+    #endif
+
     // loop over channels
     for (k = 0; k < nc; k++) {
-        fzero(xx, nt);
-        fcopy(xx, x, cs);
-        cha_fft_rc(xx, nt);
+        //fzero(xx, nt); //original location
+        //fcopy(xx, x, cs); //original location
+        //cha_fft_rc(xx, nt); //original location
+        
         // loop over sub-window segments
         yk = y + k * cs;
         zk = zz + k * (nw + cs);
@@ -102,9 +137,25 @@ firfb_analyze_sc(float *x, float *y, int cs,
             #else
               cmul(yy, xx, hk, nf);
             #endif
-            cha_fft_cr(yy, nt);
+
+            //now do inverse FFT
+            #if USE_ARM_MATH
+              //DSP accelerated version needs the negative frequencies to be created first
+              #define ORIG_YY 0
+              rebuildNegFreqBins(yy, nt); //nt is 256
+              ARM_FFT_FUNC(&ifft_inst1, yy); //DSP accelerated.
+            #else
+              #define ORIG_YY 1
+              //original
+              cha_fft_cr(yy, nt);
+            #endif
+   
             for (i = 0; i < nt; i++) {
+              #if ORIG_YY
                 zk[i + j * cs] += yy[i];
+              #else
+                zk[i + j * cs] += yy[2*i];
+              #endif
             }
         }
         fcopy(yk, zk, cs);
@@ -132,7 +183,7 @@ firfb_analyze_lc(float *x, float *y, int cs,
         #if USE_ARM_MATH
            for (k = 0; k < ni; k++) { xx_temp[2*k]=x[k+j]; xx_temp[2*k+1]=0.0f;} //ni = nw = 128
            for (k=ni; k < nt; k++) { xx_temp[2*k]=0.0f; xx_temp[2*k+1] = 0.0f; } ///zero pad the rest of the buffer
-           ARM_FFT_FUNC(&cfft_inst1, xx_temp); //DSP accelerated
+           ARM_FFT_FUNC(&fft_inst1, xx_temp); //DSP accelerated
         #else
           fzero(xx, nt);
           fcopy(xx, x + j, ni);      
@@ -145,7 +196,7 @@ firfb_analyze_lc(float *x, float *y, int cs,
             #if USE_ARM_MATH
               arm_cmplx_mult_cmplx_f32(xx_temp, hk, yy_temp, nf); //complex multiply (ie, create the current channel)
               rebuildNegFreqBins(yy_temp, nt); //nt is 256
-              ARM_FFT_FUNC(&cifft_inst1, yy_temp); //DSP accelerated.  Need to divide each element ,by n????
+              ARM_FFT_FUNC(&ifft_inst1, yy_temp); //DSP accelerated.  Need to divide each element ,by n????
             #else
               cmul(yy, xx, hk, nf); //complex multiply (ie, create the current channel)
               cha_fft_cr(yy, nt);   //IFFT
