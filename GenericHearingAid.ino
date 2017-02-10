@@ -12,8 +12,11 @@
    MIT License.  use at your own risk.
 */
 
-#define CUSTOM_SAMPLE_RATE 24000     //See local AudioStream_Mod.h.  Only a limitted number supported
-#define CUSTOM_BLOCK_SAMPLES 128     //See local AudioStream_Mod.h.  Do not change.  Doesn't work yet.
+#define CUSTOM_SAMPLE_RATE 24000     //See AudioStream_Mod.h.  Only a limitted number supported
+#define CUSTOM_BLOCK_SAMPLES 128     //See AudioStream_Mod.h.  Do not change.  Doesn't work yet.
+
+//Use the new Tympan board?
+#define USE_TYMPAN 1    //0 = Teensy Audio, 1 = Tympan w/On-board mics, 2 = Tympan with Jack as Line-In, 3 = Tympan with Jac as Mic-In
 
 //Use test tone as input (set to 1)?  Or, use live audio (set to zero)
 #define USE_TEST_TONE_INPUT 0
@@ -33,16 +36,21 @@
 
 
 //create audio library objects for handling the audio
-AudioControlSGTL5000    audioHardware;     //controller for the Teensy Audio Board
+#if USE_TYMPAN == 0
+  AudioControlSGTL5000    audioHardware;    //controller for the Teensy Audio Board
+#else
+  AudioControlTLV320AIC3206    audioHardware;    //controller for the Teensy Audio Board
+#endif
 AudioSynthWaveformSine  testSignal;          //use to generate test tone as input
 AudioInputI2S           i2s_in;          //Digital audio *from* the Teensy Audio Board ADC.  Sends Int16.  Stereo.
 AudioOutputI2S          i2s_out;        //Digital audio *to* the Teensy Audio Board DAC.  Expects Int16.  Stereo
+
+
+//Make all of the audio connections
 AudioConvert_I16toF32   int2Float1;     //Converts Int16 to Float.  See class in AudioStream_F32.h
 AudioEffectMine_F32     effect1;        //This is your own algorithms
 AudioConvert_F32toI16   float2Int1;     //Converts Float to Int16.  See class in AudioStream_F32.h
 
-
-//Make all of the audio connections
 #if (USE_TEST_TONE_INPUT == 1)
   //use test tone as audio input
   AudioConnection         patchCord1(testSignal, 0, int2Float1, 0);    //connect the Left input to the Left Int->Float converter
@@ -55,19 +63,52 @@ AudioConnection_F32     patchCord12(effect1, 0, float2Int1, 0);    //Left.  make
 AudioConnection         patchCord20(float2Int1, 0, i2s_out, 0);  //connect the Left float processor to the Left output
 AudioConnection         patchCord21(float2Int1, 0, i2s_out, 1);  //connect the Right float processor to the Right output
 
-// which input on the audio shield will be used?
-const int myInput = AUDIO_INPUT_LINEIN;   //or, do AUDIO_INPUT_MIC
 
 //I have a potentiometer on the Teensy Audio Board
 #define POT_PIN A1  //potentiometer is tied to this pin
+
+// define functions to setup the hardware
+void setupAudioHardware(void) {
+  #if USE_TYMPAN == 0
+    //use Teensy Audio Board
+    Serial.println("Setting up Teensy Audio Board...");
+    const int myInput = AUDIO_INPUT_LINEIN;   //which input to use?  AUDIO_INPUT_LINEIN or AUDIO_INPUT_MIC
+
+    audioHardware.enable();                   //start the audio board
+    audioHardware.inputSelect(myInput);       //choose line-in or mic-in
+    audioHardware.volume(0.8);                //volume can be 0.0 to 1.0.  0.5 seems to be the usual default.
+    audioHardware.lineInLevel(10, 10);        //level can be 0 to 15.  5 is the Teensy Audio Library's default
+    audioHardware.adcHighPassFilterDisable(); //reduces noise.  https://forum.pjrc.com/threads/27215-24-bit-audio-boards?p=78831&viewfull=1#post78831
+  #else
+    //use Tympan Audio Board
+    Serial.println("Setting up Tympan Audio Board...");
+    audioHardware.enable(); // activate AIC
+
+    //choose which input for Tympan
+    #if USE_TYMPAN == 1
+      audioHardware.inputSelect(TYMPAN_INPUT_ON_BOARD_MIC); // use the on board microphones // default
+    #elif USE_TYMPAN == 2
+      audioHardware.inputSelect(TYMPAN_INPUT_JACK_AS_LINEIN); // use the microphone jack
+    #elif USE_TYMPAN == 3
+      audioHardware.inputSelect(TYMPAN_INPUT_JACK_AS_MIC); // use the microphone jack
+      audioHardware.setMicBias(TYMPAN_MIC_BIAS_2_5);//choices: TYMPAN_MIC_BIAS_2_5, TYMPAN_MIC_BIAS_1_7, TYMPAN_MIC_BIAS_1_25, TYMPAN_MIC_BIAS_VSUPPLY
+    #endif
+   
+    //set gain levels
+    audioHardware.volume_dB(0);  // -63.6 to +24 dB in 0.5dB steps.  uses signed 8-bit
+    audioHardware.setInputGain_dB(10); // set MICPGA volume, 0-47.5dB in 0.5dB setps
+  #endif
+
+  //All versions of our hardware have a potentiometer
+  pinMode(POT_PIN, INPUT); //set the potentiometer's input pin as an INPUT
+}
 
 // define the setup() function, the function that is called once when the device is booting
 void setup() {
   Serial.begin(115200);   //open the USB serial link to enable debugging messages
   delay(500);             //give the computer's USB serial system a moment to catch up.
   Serial.println("GenericHearingAid: setup()...");
-  Serial.print("Global: F_CPU: "); Serial.println(F_CPU); 
-  Serial.print("Global: F_PLL: "); Serial.println(F_PLL);
+  Serial.print("Global: F_CPU: "); Serial.println(F_CPU);
   Serial.print("Global: AUDIO_SAMPLE_RATE: "); Serial.println(AUDIO_SAMPLE_RATE);
   Serial.print("Global: AUDIO_BLOCK_SAMPLES: "); Serial.println(AUDIO_BLOCK_SAMPLES);
 
@@ -75,19 +116,11 @@ void setup() {
   AudioMemory(10);      //allocate Int16 audio data blocks
   AudioMemory_F32(10);  //allocate Float32 audio data blocks
 
-  //change the sample rate...this is required for any sample rate other than 44100...WEA to fix.
-  setI2SFreq((int)AUDIO_SAMPLE_RATE); //set the sample rate for the Audio Card (the rest of the library doesn't know, though)
- 
-  // Enable the audio shield, select input, and enable output
-  audioHardware.enable();                   //start the audio board
-  audioHardware.inputSelect(myInput);       //choose line-in or mic-in
-  audioHardware.volume(0.8);                //volume can be 0.0 to 1.0.  0.5 seems to be the usual default.
-  audioHardware.lineInLevel(10, 10);        //level can be 0 to 15.  5 is the Teensy Audio Library's default
-  audioHardware.adcHighPassFilterDisable(); //reduces noise.  https://forum.pjrc.com/threads/27215-24-bit-audio-boards?p=78831&viewfull=1#post78831
-
-  // setup any other other features
-  pinMode(POT_PIN, INPUT); //set the potentiometer's input pin as an INPUT
-
+  // Setup the Audio Hardware
+   setI2SFreq((int)AUDIO_SAMPLE_RATE); //set the sample rate for the Audio Card (the rest of the library doesn't know, though)
+  setupAudioHardware();
+  Serial.println("Audio Hardware Setup Complete.");
+  
   //setup sine wave as test signal
   testSignal.amplitude(0.01);
   testSignal.frequency(500.0f);
@@ -126,20 +159,28 @@ void servicePotentiometer(unsigned long curTime_millis) {
     //send the potentiometer value to your algorithm as a control parameter
     //float scaled_val = val / 3.0; scaled_val = scaled_val * scaled_val;
     if (abs(val - prev_val) > 0.05) { //is it different than befor?
+      prev_val = val;  //save the value for comparison for the next time around
+      
       //Serial.print("Sending new value to my algorithms: ");
       //Serial.println(effect1.setUserParameter(val));   //effect2.setUserParameter(val);
+      if (USE_TYMPAN > 0) val = 1.0 - val;  //reverse direction of potentiometer (error with Tympan PCB)
 
       #if USE_TEST_TONE_INPUT==1
         float freq = 700.f+200.f*((val - 0.5)*2.0);  //change tone 700Hz +/- 200 Hz
         Serial.print("Changing tone frequency to = "); Serial.println(freq);
         testSignal.frequency(freq);
       #else
-        float vol = 0.70f + 0.15f*((val-0.5)*2.0);  //set volume as 0.70 +/- 0.15
-        Serial.print("Setting output volume control to = "); Serial.println(vol);
-        audioHardware.volume(vol);
+        #if USE_TYMPAN > 0
+          float vol_dB = 0.f + 15.0f*((val-0.5)*2.0);  //set volume as 0dB +/- 15 dB
+          Serial.print("Changing output volume frequency to = "); Serial.print(vol_dB);Serial.println(" dB");
+          audioHardware.volume_dB(vol_dB);
+        #else
+          float vol = 0.70f + 0.15f*((val-0.5)*2.0);  //set volume as 0.70 +/- 0.15
+          Serial.print("Setting output volume control to = "); Serial.println(vol);
+          audioHardware.volume(vol);
+        #endif
       #endif
     }
-    prev_val = val;  //use the value the next time around
     lastUpdate_millis = curTime_millis;
   } // end if
 } //end servicePotentiometer();
