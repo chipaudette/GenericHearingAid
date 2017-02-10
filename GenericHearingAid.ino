@@ -42,8 +42,7 @@
 #if USE_TYMPAN == 0
   AudioControlSGTL5000    audioHardware;    //controller for the Teensy Audio Board
 #else
-  #include "control_tlv320.h"
-  AudioControlTLV320    audioHardware;    //controller for the Teensy Audio Board
+  AudioControlTLV320AIC3206    audioHardware;    //controller for the Teensy Audio Board
 #endif
 AudioSynthWaveformSine  testSignal;          //use to generate test tone as input
 AudioInputI2S           i2s_in;          //Digital audio *from* the Teensy Audio Board ADC.  Sends Int16.  Stereo.
@@ -82,8 +81,6 @@ AudioOutputI2S          i2s_out;        //Digital audio *to* the Teensy Audio Bo
   AudioConnection         patchCord21(effect1, 0, i2s_out, 1);  //connect the Right float processor to the Right output
 #endif
 
-// which input on the audio shield will be used?
-const int myInput = AUDIO_INPUT_LINEIN;   //or, do AUDIO_INPUT_MIC
 
 //I have a potentiometer on the Teensy Audio Board
 #define POT_PIN A1  //potentiometer is tied to this pin
@@ -93,6 +90,8 @@ void setupAudioHardware(void) {
   #if USE_TYMPAN == 0
     //use Teensy Audio Board
     Serial.println("Setting up Teensy Audio Board...");
+    const int myInput = AUDIO_INPUT_LINEIN;   //which input to use?  AUDIO_INPUT_LINEIN or AUDIO_INPUT_MIC
+
     audioHardware.enable();                   //start the audio board
     audioHardware.inputSelect(myInput);       //choose line-in or mic-in
     audioHardware.volume(0.8);                //volume can be 0.0 to 1.0.  0.5 seems to be the usual default.
@@ -104,17 +103,23 @@ void setupAudioHardware(void) {
     audioHardware.enable(); // activate AIC
 
     //choose input
-    //audioHardware.inputSelect(TYMPAN_INPUT_MIC_JACK); // use the microphone jack
-    audioHardware.inputSelect(TYMPAN_INPUT_ON_BOARD_MIC); // use the on board microphones // default
-
-    //choose mic bias (if using mics on input jack)
-    int myBiasLevel = TYMPAN_MIC_BIAS_2_5;  //choices: TYMPAN_MIC_BIAS_2_5, TYMPAN_MIC_BIAS_1_7, TYMPAN_MIC_BIAS_1_25, TYMPAN_MIC_BIAS_VSUPPLY
-    audioHardware.setMicBias(myBiasLevel); // set mic bias to 2.5 // default
-  
-    //set volumes
-    audioHardware.volume(0);  // -63.6 to +24 dB in 0.5dB steps.  uses signed 8-bit
-    audioHardware.micGain(10); // set MICPGA volume, 0-47.5dB in 0.5dB setps
+    #define INPUT_TYPE 1
+    #if INPUT_TYPE == 1
+      audioHardware.inputSelect(TYMPAN_INPUT_ON_BOARD_MIC); // use the on board microphones // default
+    #elif INPUT_TYPE == 2
+      audioHardware.inputSelect(TYMPAN_INPUT_JACK_AS_LINEIN); // use the microphone jack
+    #elif INPUT_TYPE == 3
+      audioHardware.inputSelect(TYMPAN_INPUT_JACK_AS_MIC); // use the microphone jack
+      audioHardware.setMicBias(TYMPAN_MIC_BIAS_2_5);//choices: TYMPAN_MIC_BIAS_2_5, TYMPAN_MIC_BIAS_1_7, TYMPAN_MIC_BIAS_1_25, TYMPAN_MIC_BIAS_VSUPPLY
+    #endif
+   
+    //set gain levels
+    audioHardware.volume_dB(0);  // -63.6 to +24 dB in 0.5dB steps.  uses signed 8-bit
+    audioHardware.setInputGain_dB(10); // set MICPGA volume, 0-47.5dB in 0.5dB setps
   #endif
+
+  //All versions of our hardware have a potentiometer
+  pinMode(POT_PIN, INPUT); //set the potentiometer's input pin as an INPUT
 }
 
 // define the setup() function, the function that is called once when the device is booting
@@ -122,8 +127,7 @@ void setup() {
   Serial.begin(115200);   //open the USB serial link to enable debugging messages
   delay(500);             //give the computer's USB serial system a moment to catch up.
   Serial.println("GenericHearingAid: setup()...");
-  Serial.print("Global: F_CPU: "); Serial.println(F_CPU); 
-  Serial.print("Global: F_PLL: "); Serial.println(F_PLL);
+  Serial.print("Global: F_CPU: "); Serial.println(F_CPU);
   Serial.print("Global: AUDIO_SAMPLE_RATE: "); Serial.println(AUDIO_SAMPLE_RATE);
   Serial.print("Global: AUDIO_BLOCK_SAMPLES: "); Serial.println(AUDIO_BLOCK_SAMPLES);
 
@@ -131,16 +135,11 @@ void setup() {
   AudioMemory(10);      //allocate Int16 audio data blocks
   AudioMemory_F32(10);  //allocate Float32 audio data blocks
 
-  //change the sample rate...this is required for any sample rate other than 44100...WEA to fix.
-  setI2SFreq((int)AUDIO_SAMPLE_RATE); //set the sample rate for the Audio Card (the rest of the library doesn't know, though)
- 
-  // Enable the audio shield, select input, and enable output
+  // Setup the Audio Hardware
+   setI2SFreq((int)AUDIO_SAMPLE_RATE); //set the sample rate for the Audio Card (the rest of the library doesn't know, though)
   setupAudioHardware();
   Serial.println("Audio Hardware Setup Complete.");
   
-  // setup any other other features
-  pinMode(POT_PIN, INPUT); //set the potentiometer's input pin as an INPUT
-
   //setup sine wave as test signal
   testSignal.amplitude(0.01);
   testSignal.frequency(500.0f);
@@ -193,7 +192,7 @@ void servicePotentiometer(unsigned long curTime_millis) {
         #if USE_TYMPAN == 1
           float vol_dB = 0.f + 15.0f*((val-0.5)*2.0);  //set volume as 0dB +/- 15 dB
           Serial.print("Changing output volume frequency to = "); Serial.print(vol_dB);Serial.println(" dB");
-          audioHardware.volume(vol_dB);
+          audioHardware.volume_dB(vol_dB);
         #else
           float vol = 0.70f + 0.15f*((val-0.5)*2.0);  //set volume as 0.70 +/- 0.15
           Serial.print("Setting output volume control to = "); Serial.println(vol);

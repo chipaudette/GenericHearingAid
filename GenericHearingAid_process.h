@@ -1,18 +1,3 @@
-extern "C" {
-#include "chapro.h"
-#include "cha_ff.h"
-#if AUDIO_BLOCK_SAMPLES == 32
-  #include "cha_ff_data32.h"
-#elif AUDIO_BLOCK_SAMPLES == 64
-  #include "cha_ff_data64.h"
-#elif AUDIO_BLOCK_SAMPLES == 128
-  #include "cha_ff_data128.h"
-#endif
-}
-
-//#define CHUNK_SIZE 128
-#define NUM_FREQ_CHAN 8
-
 /*
    GenericHearingAid_process
 
@@ -25,6 +10,20 @@ extern "C" {
 
    MIT License.  use at your own risk.
 */
+
+extern "C" {
+#include "chapro.h"
+#include "cha_ff.h"
+#if AUDIO_BLOCK_SAMPLES == 32
+  #include "cha_ff_data32.h"
+#elif AUDIO_BLOCK_SAMPLES == 64
+  #include "cha_ff_data64.h"
+#elif AUDIO_BLOCK_SAMPLES == 128
+  #include "cha_ff_data128.h"
+#endif
+}
+
+#define NUM_FREQ_CHAN 8
 
 #include <arm_math.h> //ARM DSP extensions.  https://www.keil.com/pack/doc/CMSIS/DSP/html/index.html
 #include "AudioStream_Mod.h"
