@@ -12,8 +12,8 @@
 //#define undb2(x)        expf((x)/(20/logf(10)))
 //#define db2(x)          cha_db2(x)
 //#define undb2(x)        cha_undb2(x)
-#define undb2(x)    (expf(2.302585092994f*(x / 20.0)))  //faster:  exp(log(10.0f)*x);  this is exact
-#define db2(x)      (20.0f*0.3010299956639812f*log2f_approx(x)) //faster: log2_approx(x)/log2(10);  this is approximate
+#define undb2(x)    (expf(0.1151292546497023f*x))  //faster:  exp(log(10.0f)*(x/20));  this is exact
+#define db2(x)      ((6.020599913279624f)*log2f_approx(x)) //faster: 20*log2_approx(x)/log2(10);  this is approximate
 
 /* ----------------------------------------------------------------------
 ** Fast approximation to the log2() function.  It uses a two step
