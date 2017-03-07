@@ -16,7 +16,7 @@
 #define CUSTOM_BLOCK_SAMPLES 128     //See local AudioStream_Mod.h.  Do not change.  Doesn't work yet.
 
 //Use test tone as input (set to 1)?  Or, use live audio (set to zero)
-#define USE_TEST_TONE_INPUT 0
+#define USE_TEST_TONE_INPUT 1
 
 //include my custom AudioStream.h...this prevents the default one from being used
 #include "AudioStream_Mod.h"
@@ -56,7 +56,8 @@ AudioConnection         patchCord20(float2Int1, 0, i2s_out, 0);  //connect the L
 AudioConnection         patchCord21(float2Int1, 0, i2s_out, 1);  //connect the Right float processor to the Right output
 
 // which input on the audio shield will be used?
-const int myInput = AUDIO_INPUT_LINEIN;   //or, do AUDIO_INPUT_MIC
+//const int myInput = AUDIO_INPUT_LINEIN;   //or, do AUDIO_INPUT_MIC
+const int myInput = AUDIO_INPUT_MIC;   //or, do AUDIO_INPUT_MIC
 
 //I have a potentiometer on the Teensy Audio Board
 #define POT_PIN A1  //potentiometer is tied to this pin
