@@ -3,6 +3,7 @@
 
    Created: Chip Audette, Dec 2016
    Modified by: Daniel Rasetshwane, January 2017
+   Modified by: Chip Audette March 2017
    Purpose: Implements Generic Hearing Aid signal processing
 
    Uses Teensy Audio Adapter.
@@ -12,113 +13,89 @@
    MIT License.  use at your own risk.
 */
 
-#define CUSTOM_SAMPLE_RATE 24000     //See AudioStream_Mod.h.  Only a limitted number supported
-#define CUSTOM_BLOCK_SAMPLES 128     //See AudioStream_Mod.h.  Do not change.  Doesn't work yet.
-
-//Use the new Tympan board?
-#define USE_TYMPAN 1    //0 = Teensy Audio, 1 = Tympan w/On-board mics, 2 = Tympan with Jack as Line-In, 3 = Tympan with Jac as Mic-In
-
 //Use test tone as input (set to 1)?  Or, use live audio (set to zero)
 #define USE_TEST_TONE_INPUT 0
 
-//include my custom AudioStream.h...this prevents the default one from being used
-#include "AudioStream_Mod.h"
-
 //These are the includes from the Teensy Audio Library
-#include <Audio.h>      //Teensy Audio Library
+//#include <Audio.h>      //Teensy Audio Library
 #include <Wire.h>
 #include <SPI.h>
-//include <SD.h>
-//include <SerialFlash.h>
+#include <SD.h>
+#include <Tympan_Library.h> 
 
-#include <OpenAudio_ArduinoLibrary.h> //for AudioConvert_I16toF32, AudioConvert_F32toI16, and AudioEffectGain_F32
 #include "GenericHearingAid_process.h"
 
 
+const float sample_rate_Hz = 24000.0f ; //24000 or 44117.64706f (or other frequencies in the table in AudioOutputI2S_F32
+const int audio_block_samples = 128;  //for this version of GenericHearingAid, do not change from 128
+AudioSettings_F32   audio_settings(sample_rate_Hz, audio_block_samples);
+
 //create audio library objects for handling the audio
-#if USE_TYMPAN == 0
-  AudioControlSGTL5000    audioHardware;    //controller for the Teensy Audio Board
-#else
-  AudioControlTLV320AIC3206    audioHardware;    //controller for the Teensy Audio Board
-#endif
-AudioSynthWaveformSine  testSignal;          //use to generate test tone as input
-AudioInputI2S           i2s_in;          //Digital audio *from* the Teensy Audio Board ADC.  Sends Int16.  Stereo.
-AudioOutputI2S          i2s_out;        //Digital audio *to* the Teensy Audio Board DAC.  Expects Int16.  Stereo
+AudioControlTLV320AIC3206   audioHardware;    //controller for the Teensy Audio Board
+AudioSynthWaveformSine_F32    testSignal;          //use to generate test tone as input
+AudioInputI2S_F32             i2s_in;          //Digital audio *from* the Audio Board ADC. 
+AudioOutputI2S_F32            i2s_out;        //Digital audio *to* the  Audio Board DAC.  
+AudioGenericHearingAid_F32    effect1;        //This is your own algorithms
 
-
-//Make all of the audio connections
-AudioConvert_I16toF32   int2Float1;     //Converts Int16 to Float.  See class in AudioStream_F32.h
-AudioEffectMine_F32     effect1;        //This is your own algorithms
-AudioConvert_F32toI16   float2Int1;     //Converts Float to Int16.  See class in AudioStream_F32.h
-
+//make the Audio Connections
 #if (USE_TEST_TONE_INPUT == 1)
   //use test tone as audio input
-  AudioConnection         patchCord1(testSignal, 0, int2Float1, 0);    //connect the Left input to the Left Int->Float converter
+  AudioConnection         patchCord1(testSignal, 0, effect1, 0);  //connect the test signal to the hearing aid processing
 #else
   //use real audio input (microphones or line-in)
-  AudioConnection         patchCord1(i2s_in, 0, int2Float1, 0);    //connect the Left input to the Left Int->Float converter
+  AudioConnection         patchCord1(i2s_in, 0, effect1, 0);      //connect the Left input to the hearing aid processing
 #endif
-AudioConnection_F32     patchCord10(int2Float1, 0, effect1, 0);    //Left.  makes Float connections between objects
-AudioConnection_F32     patchCord12(effect1, 0, float2Int1, 0);    //Left.  makes Float connections between objects
-AudioConnection         patchCord20(float2Int1, 0, i2s_out, 0);  //connect the Left float processor to the Left output
-AudioConnection         patchCord21(float2Int1, 0, i2s_out, 1);  //connect the Right float processor to the Right output
+AudioConnection_F32       patchCord20(effect1, 0, i2s_out, 0);  //connect the hearing aid output to the left audio output
+AudioConnection_F32       patchCord21(effect1, 0, i2s_out, 1);  //connect the hearing aid output to the right audio output
 
 
 //I have a potentiometer on the Teensy Audio Board
 #define POT_PIN A1  //potentiometer is tied to this pin
 
-// define functions to setup the hardware
-void setupAudioHardware(void) {
-  #if USE_TYMPAN == 0
-    //use Teensy Audio Board
-    Serial.println("Setting up Teensy Audio Board...");
-    const int myInput = AUDIO_INPUT_LINEIN;   //which input to use?  AUDIO_INPUT_LINEIN or AUDIO_INPUT_MIC
-
-    audioHardware.enable();                   //start the audio board
-    audioHardware.inputSelect(myInput);       //choose line-in or mic-in
-    audioHardware.volume(0.8);                //volume can be 0.0 to 1.0.  0.5 seems to be the usual default.
-    audioHardware.lineInLevel(10, 10);        //level can be 0 to 15.  5 is the Teensy Audio Library's default
-    audioHardware.adcHighPassFilterDisable(); //reduces noise.  https://forum.pjrc.com/threads/27215-24-bit-audio-boards?p=78831&viewfull=1#post78831
-  #else
-    //use Tympan Audio Board
-    Serial.println("Setting up Tympan Audio Board...");
-    audioHardware.enable(); // activate AIC
-
-    //choose which input for Tympan
-    #if USE_TYMPAN == 1
-      audioHardware.inputSelect(TYMPAN_INPUT_ON_BOARD_MIC); // use the on board microphones // default
-    #elif USE_TYMPAN == 2
-      audioHardware.inputSelect(TYMPAN_INPUT_JACK_AS_LINEIN); // use the microphone jack
-    #elif USE_TYMPAN == 3
+void setupTympanHardware(void) {
+  Serial.println("Setting up Tympan Audio Board...");
+  audioHardware.enable(); // activate AIC
+  
+  //choose input
+  switch (1) {
+    case 1: 
+      //choose on-board mics
+      audioHardware.inputSelect(TYMPAN_INPUT_ON_BOARD_MIC); // use the on board microphones
+      break;
+    case 2:
+      //choose external input, as a line in
+      audioHardware.inputSelect(TYMPAN_INPUT_JACK_AS_LINEIN); //
+      break;
+    case 3:
+      //choose external mic plus the desired bias level
       audioHardware.inputSelect(TYMPAN_INPUT_JACK_AS_MIC); // use the microphone jack
-      audioHardware.setMicBias(TYMPAN_MIC_BIAS_2_5);//choices: TYMPAN_MIC_BIAS_2_5, TYMPAN_MIC_BIAS_1_7, TYMPAN_MIC_BIAS_1_25, TYMPAN_MIC_BIAS_VSUPPLY
-    #endif
-   
-    //set gain levels
-    audioHardware.volume_dB(0);  // -63.6 to +24 dB in 0.5dB steps.  uses signed 8-bit
-    audioHardware.setInputGain_dB(10); // set MICPGA volume, 0-47.5dB in 0.5dB setps
-  #endif
+      int myBiasLevel = TYMPAN_MIC_BIAS_2_5;  //choices: TYMPAN_MIC_BIAS_2_5, TYMPAN_MIC_BIAS_1_7, TYMPAN_MIC_BIAS_1_25, TYMPAN_MIC_BIAS_VSUPPLY
+      audioHardware.setMicBias(myBiasLevel); // set mic bias to 2.5 // default
+      break;
+  }
+  
+  //set volumes
+  audioHardware.volume_dB(0.f);  // -63.6 to +24 dB in 0.5dB steps.  uses signed 8-bit
+  audioHardware.setInputGain_dB(10.f); // set MICPGA volume, 0-47.5dB in 0.5dB setps
 
-  //All versions of our hardware have a potentiometer
+  //setup the potentiometer.  same for Teensy Audio Board as for Tympan
   pinMode(POT_PIN, INPUT); //set the potentiometer's input pin as an INPUT
 }
+
 
 // define the setup() function, the function that is called once when the device is booting
 void setup() {
   Serial.begin(115200);   //open the USB serial link to enable debugging messages
   delay(500);             //give the computer's USB serial system a moment to catch up.
   Serial.println("GenericHearingAid: setup()...");
-  Serial.print("Global: F_CPU: "); Serial.println(F_CPU);
-  Serial.print("Global: AUDIO_SAMPLE_RATE: "); Serial.println(AUDIO_SAMPLE_RATE);
-  Serial.print("Global: AUDIO_BLOCK_SAMPLES: "); Serial.println(AUDIO_BLOCK_SAMPLES);
 
   // Audio connections require memory
   AudioMemory(10);      //allocate Int16 audio data blocks
   AudioMemory_F32(10);  //allocate Float32 audio data blocks
 
   // Setup the Audio Hardware
-   setI2SFreq((int)AUDIO_SAMPLE_RATE); //set the sample rate for the Audio Card (the rest of the library doesn't know, though)
-  setupAudioHardware();
+  setI2SFreq((int)AUDIO_SAMPLE_RATE); //set the sample rate for the Audio Card (the rest of the library doesn't know, though)
+  setupTympanHardware();
   Serial.println("Audio Hardware Setup Complete.");
   
   //setup sine wave as test signal
@@ -160,25 +137,16 @@ void servicePotentiometer(unsigned long curTime_millis) {
     //float scaled_val = val / 3.0; scaled_val = scaled_val * scaled_val;
     if (abs(val - prev_val) > 0.05) { //is it different than befor?
       prev_val = val;  //save the value for comparison for the next time around
-      
-      //Serial.print("Sending new value to my algorithms: ");
-      //Serial.println(effect1.setUserParameter(val));   //effect2.setUserParameter(val);
-      if (USE_TYMPAN > 0) val = 1.0 - val;  //reverse direction of potentiometer (error with Tympan PCB)
+      val = 1.0 - val;  //reverse direction of potentiometer (error with Tympan PCB)
 
       #if USE_TEST_TONE_INPUT==1
         float freq = 700.f+200.f*((val - 0.5)*2.0);  //change tone 700Hz +/- 200 Hz
         Serial.print("Changing tone frequency to = "); Serial.println(freq);
         testSignal.frequency(freq);
       #else
-        #if USE_TYMPAN > 0
-          float vol_dB = 0.f + 15.0f*((val-0.5)*2.0);  //set volume as 0dB +/- 15 dB
-          Serial.print("Changing output volume frequency to = "); Serial.print(vol_dB);Serial.println(" dB");
-          audioHardware.volume_dB(vol_dB);
-        #else
-          float vol = 0.70f + 0.15f*((val-0.5)*2.0);  //set volume as 0.70 +/- 0.15
-          Serial.print("Setting output volume control to = "); Serial.println(vol);
-          audioHardware.volume(vol);
-        #endif
+        float vol_dB = 0.f + 15.0f*((val-0.5)*2.0);  //set volume as 0dB +/- 15 dB
+        Serial.print("Changing output volume frequency to = "); Serial.print(vol_dB);Serial.println(" dB");
+        audioHardware.volume_dB(vol_dB);
       #endif
     }
     lastUpdate_millis = curTime_millis;

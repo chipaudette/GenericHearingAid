@@ -23,11 +23,11 @@ extern "C" {
 #include <arm_math.h> //ARM DSP extensions.  https://www.keil.com/pack/doc/CMSIS/DSP/html/index.html
 #include <AudioStream_F32.h>
 
-class AudioEffectMine_F32 : public AudioStream_F32
+class AudioGenericHearingAid_F32 : public AudioStream_F32
 {
    public:
     //constructor
-    AudioEffectMine_F32(void) : AudioStream_F32(1, inputQueueArray_f32) {
+    AudioGenericHearingAid_F32(void) : AudioStream_F32(1, inputQueueArray_f32) {
       //do any setup activities here
     };
 
