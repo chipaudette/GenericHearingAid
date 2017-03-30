@@ -20,7 +20,7 @@
 //#include <Audio.h>      //Teensy Audio Library
 #include <Wire.h>
 #include <SPI.h>
-#include <SD.h>
+//include <SD.h>
 #include <Tympan_Library.h> 
 
 #include "GenericHearingAid_process.h"
@@ -31,19 +31,19 @@ const int audio_block_samples = 128;  //for this version of GenericHearingAid, d
 AudioSettings_F32   audio_settings(sample_rate_Hz, audio_block_samples);
 
 //create audio library objects for handling the audio
-AudioControlTLV320AIC3206   audioHardware;    //controller for the Teensy Audio Board
-AudioSynthWaveformSine_F32    testSignal;          //use to generate test tone as input
-AudioInputI2S_F32             i2s_in;          //Digital audio *from* the Audio Board ADC. 
-AudioOutputI2S_F32            i2s_out;        //Digital audio *to* the  Audio Board DAC.  
+AudioControlTLV320AIC3206     audioHardware;    //controller for the Teensy Audio Board
+AudioSynthWaveformSine_F32    testSignal(audio_settings);          //use to generate test tone as input
+AudioInputI2S_F32             i2s_in(audio_settings);          //Digital audio *from* the Audio Board ADC. 
+AudioOutputI2S_F32            i2s_out(audio_settings);        //Digital audio *to* the  Audio Board DAC.  
 AudioGenericHearingAid_F32    effect1;        //This is your own algorithms
 
 //make the Audio Connections
 #if (USE_TEST_TONE_INPUT == 1)
   //use test tone as audio input
-  AudioConnection         patchCord1(testSignal, 0, effect1, 0);  //connect the test signal to the hearing aid processing
+  AudioConnection_F32         patchCord1(testSignal, 0, effect1, 0);  //connect the test signal to the hearing aid processing
 #else
   //use real audio input (microphones or line-in)
-  AudioConnection         patchCord1(i2s_in, 0, effect1, 0);      //connect the Left input to the hearing aid processing
+  AudioConnection_F32         patchCord1(i2s_in, 0, effect1, 0);      //connect the Left input to the hearing aid processing
 #endif
 AudioConnection_F32       patchCord20(effect1, 0, i2s_out, 0);  //connect the hearing aid output to the left audio output
 AudioConnection_F32       patchCord21(effect1, 0, i2s_out, 1);  //connect the hearing aid output to the right audio output
@@ -57,7 +57,7 @@ void setupTympanHardware(void) {
   audioHardware.enable(); // activate AIC
   
   //choose input
-  switch (1) {
+  switch (3) {
     case 1: 
       //choose on-board mics
       audioHardware.inputSelect(TYMPAN_INPUT_ON_BOARD_MIC); // use the on board microphones
@@ -91,7 +91,7 @@ void setup() {
 
   // Audio connections require memory
   AudioMemory(10);      //allocate Int16 audio data blocks
-  AudioMemory_F32(10);  //allocate Float32 audio data blocks
+  AudioMemory_F32_wSettings(10,audio_settings);  //allocate Float32 audio data blocks
 
   // Setup the Audio Hardware
   setI2SFreq((int)AUDIO_SAMPLE_RATE); //set the sample rate for the Audio Card (the rest of the library doesn't know, though)
@@ -162,9 +162,11 @@ void printMemoryAndCPU(unsigned long curTime_millis) {
   if (curTime_millis < lastUpdate_millis) lastUpdate_millis = 0; //handle wrap-around of the clock
   if ((curTime_millis - lastUpdate_millis) > updatePeriod_millis) { //is it time to update the user interface?
     Serial.print("CPU Cur/Peak: ");
-    Serial.print(AudioProcessorUsage());
+    Serial.print(audio_settings.processorUsage());
+    //Serial.print(AudioProcessorUsage());
     Serial.print("%/");
-    Serial.print(AudioProcessorUsageMax());
+    Serial.print(audio_settings.processorUsageMax());
+    //Serial.print(AudioProcessorUsageMax());
     Serial.print("%,   ");
     Serial.print("MEMORY Int16 Cur/Peak: ");
     Serial.print(AudioMemoryUsage());
