@@ -14,6 +14,19 @@
 */
 
 
+//#define CUSTOM_SAMPLE_RATE 24000     //See AudioStream_Mod.h.  Only a limitted number supported
+//#define CUSTOM_BLOCK_SAMPLES 128     //See AudioStream_Mod.h.  Do not change.  Doesn't work yet.
+//
+////Use the new Tympan board?
+//#define USE_TYMPAN 1    //0 = Teensy Audio, 1 = Tympan w/On-board mics, 2 = Tympan with Jack as Line-In, 3 = Tympan with Jac as Mic-In
+//
+////Use test tone as input (set to 1)?  Or, use live audio (set to zero)
+//#define USE_TEST_TONE_INPUT 1
+//
+////include my custom AudioStream.h...this prevents the default one from being used
+//#include "AudioStream_Mod.h"
+
+
 //These are the includes from the Teensy Audio Library
 //#include <Audio.h>      //Teensy Audio Library
 //#include <Wire.h>
@@ -36,6 +49,11 @@ AudioOutputI2S_F32            i2s_out(audio_settings);        //Digital audio *t
 AudioConnection_F32       patchCord1(i2s_in, 0, effect1, 0);      //connect the Left input to the hearing aid processing
 AudioConnection_F32       patchCord20(effect1, 0, i2s_out, 0);  //connect the hearing aid output to the left audio output
 AudioConnection_F32       patchCord21(effect1, 0, i2s_out, 1);  //connect the hearing aid output to the right audio output
+
+
+// which input on the audio shield will be used?
+//const int myInput = AUDIO_INPUT_LINEIN;   //or, do AUDIO_INPUT_MIC
+const int myInput = AUDIO_INPUT_MIC;   //or, do AUDIO_INPUT_MIC
 
 
 //I have a potentiometer on the Teensy Audio Board
